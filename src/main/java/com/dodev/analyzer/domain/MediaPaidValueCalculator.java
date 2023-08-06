@@ -10,16 +10,16 @@ public class MediaPaidValueCalculator {
         this.billingPeriodProvider = billingPeriodProvider;
     }
 
-    public Double ofDay(LocalDate date) {
-        return calculateMediaPaid(date);
+    public Double ofDay(Long mediaId, LocalDate date) {
+        return calculateMediaPaid(mediaId, date);
     }
 
-    private Double calculateMediaPaid(LocalDate date) {
+    private Double calculateMediaPaid(Long mediaId, LocalDate date) {
 
         BillingPeriod billingPeriod = billingPeriodProvider.getForDay(date);
 
-        MediaState initialMediaState = billingPeriod.getMediaInitialStates().get(0);
-        MediaMonthlyPrepaid mediaMonthlyPrepaid = billingPeriod.getPrepaids().get(0);
+        MediaState initialMediaState = billingPeriod.selectInitialStatePrepaid(mediaId);
+        MediaMonthlyPrepaid mediaMonthlyPrepaid = billingPeriod.selectMediaPrepaid(mediaId);
 
         int startYear = billingPeriod.getFrom().getYear();
         int endYear = date.getYear();

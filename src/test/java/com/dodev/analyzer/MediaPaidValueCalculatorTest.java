@@ -16,7 +16,7 @@ class MediaPaidValueCalculatorTest {
 
         MediaPaidValueCalculator calculator = new MediaPaidValueCalculator(new TestBillingProvider());
 
-        Double usageSummary = calculator.ofDay(LocalDate.of(2023,7,15));
+        Double usageSummary = calculator.ofDay(null, LocalDate.of(2023,7,15));
 
         double days = 1.0 / 31 * 15;
         Assertions.assertEquals(6 + 30 + days, usageSummary);
@@ -27,7 +27,7 @@ class MediaPaidValueCalculatorTest {
 
         MediaPaidValueCalculator calculator = new MediaPaidValueCalculator(new TestBillingProvider());
 
-        Double usageSummary = calculator.ofDay(LocalDate.of(2021,1,1));
+        Double usageSummary = calculator.ofDay(null, LocalDate.of(2021,1,1));
 
         Assertions.assertEquals(6.0, usageSummary);
     }
@@ -37,7 +37,7 @@ class MediaPaidValueCalculatorTest {
 
         MediaPaidValueCalculator calculator = new MediaPaidValueCalculator(new TestBillingProvider());
 
-        Double usageSummary = calculator.ofDay(LocalDate.of(2021,1,10));
+        Double usageSummary = calculator.ofDay(null, LocalDate.of(2021,1,10));
 
         double days = 1.0 / 31 * 10;
         Assertions.assertEquals(6.0 + days, usageSummary);

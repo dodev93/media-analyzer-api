@@ -12,6 +12,34 @@ import java.util.function.Predicate;
 public class MediaAnalyzerServiceImpl implements MediaAnalyzerService {
 
     @Override
+    public MediaDetails getMediaDetails(Long mediaId) {
+        MediaDetails mediaDetails = new MediaDetails();
+
+        mediaDetails.setId(mediaId);
+        if (mediaId == 1) {
+            mediaDetails.setName("Cold water");
+            mediaDetails.setPaymentType(MediaDetails.PaymentType.PREPAID);
+            mediaDetails.setUnit("cm3");
+        } else if (mediaId == 2) {
+            mediaDetails.setName("Hot water");
+            mediaDetails.setPaymentType(MediaDetails.PaymentType.PREPAID);
+            mediaDetails.setUnit("cm3");
+        } else if (mediaId == 3) {
+            mediaDetails.setName("Heating");
+            mediaDetails.setPaymentType(MediaDetails.PaymentType.PREPAID);
+            mediaDetails.setUnit("KJ");
+            mediaDetails.setTransformation(v -> v * 0.0036); // convert kWH to KJ
+        } else if (mediaId == 4) {
+            mediaDetails.setName("Electricity");
+            mediaDetails.setPaymentType(MediaDetails.PaymentType.USAGE);
+            mediaDetails.setUnit("KWh");
+        }
+
+        return mediaDetails;
+    }
+
+
+    @Override
     public List<MediaState> getMediaStates(Long mediaId, LocalDate from, LocalDate to) {
         return getStates(mediaId, from, to);
     }
@@ -41,7 +69,7 @@ public class MediaAnalyzerServiceImpl implements MediaAnalyzerService {
         BillingPeriod billingPeriod2022 = new BillingPeriod();
         billingPeriod2022.setId(1l);
         billingPeriod2022.setFrom(LocalDate.of(2022,8,1));
-        billingPeriod2022.setTo(LocalDate.of(2023,12,31));
+        billingPeriod2022.setTo(LocalDate.of(2022,12,31));
 
         List<MediaState> mediaInitialStates = new ArrayList<>();
         mediaInitialStates.add(new MediaState(1l, LocalDate.of(2022,8,31), 396.69 + 54.26));
@@ -66,11 +94,15 @@ public class MediaAnalyzerServiceImpl implements MediaAnalyzerService {
         billingPeriod2023.setTo(LocalDate.of(2023,12,31));
 
         List<MediaState> mediaInitialStates2023 = new ArrayList<>();
-        mediaInitialStates2023.add(new MediaState(1l, LocalDate.of(2023,1,1), 412.04 + 56.65));
-        mediaInitialStates2023.add(new MediaState(2l, LocalDate.of(2023,1,1), 189.82 + 65.24));
-        mediaInitialStates2023.add(new MediaState(3l, LocalDate.of(2023,1,1), 55027.6));
-        mediaInitialStates2023.add(new MediaState(4l, LocalDate.of(2023,1,1), 529.0));
-        billingPeriod2023.setMediaInitialStates(mediaInitialStates);
+        MediaDetails media = getMediaDetails(1l);
+        mediaInitialStates2023.add(new MediaState(media.getId(), LocalDate.of(2023,1,1), media.transform(412.04 + 56.65)));
+        media = getMediaDetails(2l);
+        mediaInitialStates2023.add(new MediaState(media.getId(), LocalDate.of(2023,1,1), media.transform(189.82 + 65.24)));
+        media = getMediaDetails(3l);
+        mediaInitialStates2023.add(new MediaState(media.getId(), LocalDate.of(2023,1,1), media.transform(55027.6)));
+        media = getMediaDetails(4l);
+        mediaInitialStates2023.add(new MediaState(media.getId(), LocalDate.of(2023,1,1), media.transform(529.0)));
+        billingPeriod2023.setMediaInitialStates(mediaInitialStates2023);
 
         List<MediaMonthlyPrepaid> prepaids2023 = new ArrayList<>();
         prepaids2023.add(new MediaMonthlyPrepaid(1l, 3.0, BigDecimal.valueOf(13.67)));
@@ -86,6 +118,8 @@ public class MediaAnalyzerServiceImpl implements MediaAnalyzerService {
 
     private List<MediaState> getStates(Long mediaId, LocalDate from, LocalDate to) {
         List<MediaState> states = new ArrayList<>();
+
+        MediaDetails media = getMediaDetails(mediaId);
 
         if (mediaId == 1) {
             states.add(new MediaState(mediaId, LocalDate.of(2022,8,31), 396.69 + 54.26));
@@ -106,21 +140,22 @@ public class MediaAnalyzerServiceImpl implements MediaAnalyzerService {
             states.add(new MediaState(mediaId, LocalDate.of(2023,1,13), 189.82 + 65.24));
             states.add(new MediaState(mediaId, LocalDate.of(2023,7,5), 198.15 + 65.73));
         } else if (mediaId == 3) {
-            states.add(new MediaState(mediaId, LocalDate.of(2022,8,31), 54661.4));
-            states.add(new MediaState(mediaId, LocalDate.of(2022,11,24), 54689.3));
-            states.add(new MediaState(mediaId, LocalDate.of(2022,12,2), 54743.6));
-            states.add(new MediaState(mediaId, LocalDate.of(2022,12,10), 54787.7));
-            states.add(new MediaState(mediaId, LocalDate.of(2022,12,16), 54861.0));
-            states.add(new MediaState(mediaId, LocalDate.of(2022,12,23), 54973.0));
-            states.add(new MediaState(mediaId, LocalDate.of(2023,1,1), 55027.6));
-            states.add(new MediaState(mediaId, LocalDate.of(2023,1,13), 55084.0));
-            states.add(new MediaState(mediaId, LocalDate.of(2023,1,31), 55303.9));
+            states.add(new MediaState(mediaId, LocalDate.of(2022,8,31), media.transform(54661.4)));
+            states.add(new MediaState(mediaId, LocalDate.of(2022,11,24), media.transform(54689.3)));
+            states.add(new MediaState(mediaId, LocalDate.of(2022,12,2), media.transform(54743.6)));
+            states.add(new MediaState(mediaId, LocalDate.of(2022,12,10), media.transform(54787.7)));
+            states.add(new MediaState(mediaId, LocalDate.of(2022,12,16), media.transform(54861.0)));
+            states.add(new MediaState(mediaId, LocalDate.of(2022,12,23), media.transform(54973.0)));
+            states.add(new MediaState(mediaId, LocalDate.of(2023,1,1), media.transform(55027.6)));
+            states.add(new MediaState(mediaId, LocalDate.of(2023,1,13), media.transform(55084.0)));
+            states.add(new MediaState(mediaId, LocalDate.of(2023,1,31), media.transform( 55303.9)));
         } else if (mediaId == 4) {
             states.add(new MediaState(mediaId, LocalDate.of(2022,8,31), 7.0));
             states.add(new MediaState(mediaId, LocalDate.of(2022,12,11), 402.0));
             states.add(new MediaState(mediaId, LocalDate.of(2023,1,13), 529.0));
             states.add(new MediaState(mediaId, LocalDate.of(2023,4,5), 832.0));
             states.add(new MediaState(mediaId, LocalDate.of(2023,6,7), 1036.0));
+            states.add(new MediaState(mediaId, LocalDate.of(2023,8,4), 1229.0));
         }
 
         return states;

@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/v1/media/{mediaId}")
+@RequestMapping("/api/v1/media")
 public class MediaController {
 
     private final ForecastProvider forecastProvider;
@@ -25,7 +25,19 @@ public class MediaController {
         this.forecastProvider = new ForecastProvider();
     }
 
-    @RequestMapping("/state")
+    @RequestMapping("")
+    public ResponseEntity<List<Summary>> getMedia(@RequestParam(value = "from", required = false) LocalDate from,
+                                                  @RequestParam(value = "to", required = false) LocalDate to) {
+        List<Summary> summaries = new ArrayList<>();
+        summaries.add(getSummary(1l, null, null).getBody());
+        summaries.add(getSummary(2l, null, null).getBody());
+        summaries.add(getSummary(3l, null, null).getBody());
+        summaries.add(getSummary(4l, null, null).getBody());
+
+        return ResponseEntity.ok(summaries);
+    }
+
+    @RequestMapping("/{mediaId}/state")
     public ResponseEntity<MediaSummaryPackage> getStates(@PathVariable("mediaId") Long mediaId,
                                                           @RequestParam("from") LocalDate from,
                                                           @RequestParam("to") LocalDate to) {
@@ -35,7 +47,8 @@ public class MediaController {
         List<MediaState> mediaStates = mediaAnalyzerService.getMediaStates(mediaId, from, to);
         List<BillingPeriod> billingPeriods = mediaAnalyzerService.getBillingPeriods(from, to);
 
-        List<MediaSummary> summaryList = prepareStates(mediaStates, billingPeriods);
+        MediaDetails media = mediaAnalyzerService.getMediaDetails(mediaId);
+        List<MediaSummary> summaryList = prepareStates(media, mediaStates, billingPeriods);
 
         mediaSummaryPackage.setType(mediaId + "");
         mediaSummaryPackage.setFrom(from);
@@ -46,7 +59,7 @@ public class MediaController {
         return ResponseEntity.ok(mediaSummaryPackage);
     }
 
-    @RequestMapping("/summary")
+    @RequestMapping("/{mediaId}/summary")
     public ResponseEntity<Summary> getSummary(@PathVariable("mediaId") Long mediaId,
                                               @RequestParam("from") LocalDate from,
                                               @RequestParam("to") LocalDate to) {
@@ -57,26 +70,15 @@ public class MediaController {
         BillingPeriodProvider billingPeriodProvider = new BillingPeriodProviderImpl(Arrays.asList(billingPeriod));
         MediaPaidValueCalculator mediaPaidValueCalculator = new MediaPaidValueCalculator(billingPeriodProvider);
 
-        MediaMonthlyPrepaid mediaMonthlyPrepaid = selectMediaMonthlyPrepaid(mediaId, billingPeriod);
+        MediaMonthlyPrepaid mediaMonthlyPrepaid = billingPeriod.selectMediaPrepaid(mediaId);
 
-        Summary summary = prepareSummary(mediaPaidValueCalculator, mediaState, mediaMonthlyPrepaid.getUnitPrice().doubleValue());
+        MediaDetails media = mediaAnalyzerService.getMediaDetails(mediaId);
+        Summary summary = prepareSummary(media, mediaPaidValueCalculator, mediaState, mediaMonthlyPrepaid.getUnitPrice().doubleValue());
 
         return ResponseEntity.ok(summary);
     }
 
-    private MediaMonthlyPrepaid selectMediaMonthlyPrepaid(Long mediaId, BillingPeriod billingPeriod) {
-        List<MediaMonthlyPrepaid> prepaids = billingPeriod.getPrepaids();
-        MediaMonthlyPrepaid mediaMonthlyPrepaid = null;
-        for (MediaMonthlyPrepaid prepaid : prepaids) {
-            if (prepaid.getMediaId().equals(mediaId)) {
-                mediaMonthlyPrepaid = prepaid;
-                break;
-            }
-        }
-        return mediaMonthlyPrepaid;
-    }
-
-    @RequestMapping("/statistics")
+    @RequestMapping("/{mediaId}/statistics")
     public ResponseEntity<MediaStatistics> getStatistics(@PathVariable("mediaId") Long mediaId) {
 
         List<MediaState> states = mediaAnalyzerService.getMediaStates(mediaId, null, null);
@@ -85,28 +87,30 @@ public class MediaController {
         BillingPeriodProvider billingPeriodProvider = new BillingPeriodProviderImpl(Arrays.asList(billingPeriod));
         MediaPaidValueCalculator mediaPaidValueCalculator = new MediaPaidValueCalculator(billingPeriodProvider);
 
-        MediaMonthlyPrepaid mediaMonthlyPrepaid = selectMediaMonthlyPrepaid(mediaId, billingPeriod);
+        MediaMonthlyPrepaid mediaMonthlyPrepaid = billingPeriod.selectMediaPrepaid(mediaId);
 
-        MediaStatistics statistics = prepareStatistics(mediaPaidValueCalculator,
+        MediaStatistics statistics = prepareStatistics(mediaId,
+                                                       mediaPaidValueCalculator,
                                                        mediaMonthlyPrepaid,
                                                        states);
 
         return ResponseEntity.ok(statistics);
     }
 
-    private MediaStatistics prepareStatistics(MediaPaidValueCalculator calculator, MediaMonthlyPrepaid mediaMonthlyPrepaid, List<MediaState> states) {
+    private MediaStatistics prepareStatistics(Long mediaId, MediaPaidValueCalculator calculator, MediaMonthlyPrepaid mediaMonthlyPrepaid, List<MediaState> states) {
         MediaStatistics statistics = new MediaStatistics();
 
         MediaState actualState = states.get(states.size() - 1);
         double unitPrice = mediaMonthlyPrepaid.getUnitPrice().doubleValue();
 
+        MediaDetails media = mediaAnalyzerService.getMediaDetails(mediaId);
         statistics.setForecast(forecastProvider.prepareForecast(states, mediaMonthlyPrepaid.getValue(), unitPrice));
-        statistics.setSummary(prepareSummary(calculator, actualState, unitPrice));
+        statistics.setSummary(prepareSummary(media, calculator, actualState, unitPrice));
 
         return statistics;
     }
 
-    private List<MediaSummary> prepareStates(List<MediaState> mediaStates, List<BillingPeriod> billingPeriods) {
+    private List<MediaSummary> prepareStates(MediaDetails mediaDetails, List<MediaState> mediaStates, List<BillingPeriod> billingPeriods) {
 
         BillingPeriodProvider billingPeriodProvider = new BillingPeriodProviderImpl(billingPeriods);
         MediaPaidValueCalculator mediaPaidValueCalculator = new MediaPaidValueCalculator(billingPeriodProvider);
@@ -116,29 +120,33 @@ public class MediaController {
             mediaStates.add(new MediaState(actualState.getMediaId(), LocalDate.now(), null));
 
         List<MediaSummary> summaryList = mediaStates.stream()
-                                                    .map(ms -> prepareState(mediaPaidValueCalculator, ms))
+                                                    .map(ms -> prepareState(mediaDetails, mediaPaidValueCalculator, ms))
                                                     .collect(Collectors.toList());
 
         return summaryList;
     }
 
-    private MediaSummary prepareState(MediaPaidValueCalculator mediaPaidValueCalculator, MediaState ms) {
+    private MediaSummary prepareState(MediaDetails mediaDetails, MediaPaidValueCalculator mediaPaidValueCalculator, MediaState ms) {
         MediaSummary summary = new MediaSummary();
         summary.setDate(ms.getDate());
         summary.setUsed(ms.getValue());
-        summary.setPaid(mediaPaidValueCalculator.ofDay(ms.getDate()));
+        summary.setPaid(mediaPaidValueCalculator.ofDay(mediaDetails.getId(), ms.getDate()));
         return summary;
     }
 
-    private Summary prepareSummary(MediaPaidValueCalculator mediaPaidValueCalculator, MediaState ms, Double unitPrice) {
+    private Summary prepareSummary(MediaDetails mediaDetails, MediaPaidValueCalculator mediaPaidValueCalculator,
+                                   MediaState ms, Double unitPrice) {
         Summary summary = new Summary();
+        summary.setMedia(mediaDetails);
         summary.setLastStateDate(ms.getDate());
         summary.setUsed(ms.getValue());
-        summary.setPaidToday(mediaPaidValueCalculator.ofDay(LocalDate.now()));
-        Double paidForLastUsed = mediaPaidValueCalculator.ofDay(ms.getDate());
-        summary.setPaidLastState(paidForLastUsed);
-        summary.setOverused(summary.getUsed() - paidForLastUsed);
-        summary.setOverpaid(summary.getOverused() * unitPrice);
+        if (mediaDetails != null && MediaDetails.PaymentType.PREPAID.equals(mediaDetails.getPaymentType())) {
+            summary.setPaidToday(mediaPaidValueCalculator.ofDay(mediaDetails.getId(), LocalDate.now()));
+            Double paidForLastUsed = mediaPaidValueCalculator.ofDay(mediaDetails.getId(), ms.getDate());
+            summary.setPaidLastState(paidForLastUsed);
+            summary.setOverused(summary.getUsed() - paidForLastUsed);
+            summary.setOverpaid(summary.getOverused() * unitPrice);
+        }
         return summary;
     }
 

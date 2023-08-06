@@ -5,6 +5,8 @@ import java.util.List;
 
 public interface MediaAnalyzerService {
 
+    MediaDetails getMediaDetails(Long mediaId);
+
     List<MediaState> getMediaStates(Long mediaId, LocalDate from, LocalDate to);
 
     MediaState getLastMediaState(Long mediaId);
