@@ -2,10 +2,7 @@ package com.dodev.analyzer.api.v1;
 
 import com.dodev.analyzer.domain.*;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -25,7 +22,7 @@ public class MediaController {
         this.forecastProvider = new ForecastProvider();
     }
 
-    @RequestMapping("")
+    @GetMapping("")
     public ResponseEntity<List<Summary>> getMedia(@RequestParam(value = "from", required = false) LocalDate from,
                                                   @RequestParam(value = "to", required = false) LocalDate to) {
         List<Summary> summaries = new ArrayList<>();
@@ -37,7 +34,7 @@ public class MediaController {
         return ResponseEntity.ok(summaries);
     }
 
-    @RequestMapping("/{mediaId}/state")
+    @GetMapping("/{mediaId}/state")
     public ResponseEntity<MediaSummaryPackage> getStates(@PathVariable("mediaId") Long mediaId,
                                                           @RequestParam("from") LocalDate from,
                                                           @RequestParam("to") LocalDate to) {
@@ -59,7 +56,7 @@ public class MediaController {
         return ResponseEntity.ok(mediaSummaryPackage);
     }
 
-    @RequestMapping("/{mediaId}/summary")
+    @GetMapping("/{mediaId}/summary")
     public ResponseEntity<Summary> getSummary(@PathVariable("mediaId") Long mediaId,
                                               @RequestParam("from") LocalDate from,
                                               @RequestParam("to") LocalDate to) {
@@ -78,7 +75,7 @@ public class MediaController {
         return ResponseEntity.ok(summary);
     }
 
-    @RequestMapping("/{mediaId}/statistics")
+    @GetMapping("/{mediaId}/statistics")
     public ResponseEntity<MediaStatistics> getStatistics(@PathVariable("mediaId") Long mediaId) {
 
         List<MediaState> states = mediaAnalyzerService.getMediaStates(mediaId, null, null);
